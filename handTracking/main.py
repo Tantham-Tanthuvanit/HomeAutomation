@@ -6,6 +6,7 @@ from mediapipe import Image, ImageFormat
 import constants
 
 from helper import cleaning
+from data_handler import dumpHands
 
 # loading the model
 base_options = python.BaseOptions(model_asset_path = "./models/hand_landmarker.task")
@@ -27,14 +28,27 @@ with vision.HandLandmarker.create_from_options(options) as detector:
         # run inference ( predict data )
         detection_res = detector.detect(rgb_frame)
 
+        key = cv2.waitKey(1) & 0xFF
+
         # check if hands were detected
         if detection_res.hand_landmarks:
+
+            hands = []
+            
             for hand_landmarks in detection_res.hand_landmarks:
 
                 pixelPoints = []
-                fingers = []
 
-                for landmark in hand_landmarks:
+                hand_data = []
+
+                for landmark_idx, landmark in enumerate(hand_landmarks):
+                    hand_data.append({
+                        "point": constants.hand_point_names[landmark_idx],
+                        "x":     landmark.x,
+                        "y":     landmark.y,
+                        "z":     landmark.z
+                    })
+
                     # Scale the normalized float values into screen pixels
                     cx = int(landmark.x * w)
                     cy = int(landmark.y * h)
@@ -43,6 +57,8 @@ with vision.HandLandmarker.create_from_options(options) as detector:
 
                     # Draw red dots at every joint coordinate
                     cv2.circle(frame, (cx,cy), 5, (0,0,255),-1)
+
+                hands.append(hand_data)
 
                 for connection in constants.hand_connections:
                     startIdx = connection[0]
@@ -53,9 +69,12 @@ with vision.HandLandmarker.create_from_options(options) as detector:
 
                     cv2.line(frame, start_point, end_point, (0,255,0), 2)
 
+            if key == ord('e'):
+                dumpHands(hands)
+
         cv2.imshow("Hand Tracking", frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if key == ord('q'):
             break
 
     cap.release()
